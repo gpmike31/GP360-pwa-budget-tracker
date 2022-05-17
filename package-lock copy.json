@@ -33,8 +33,8 @@
       }
     },
     "node_modules/@types/node": {
-      "version": "17.0.34",
-      "resolved": "https://registry.npmjs.org/@types/node/-/node-17.0.34.tgz",
+      "version": "17.0.31",
+      "resolved": "https://registry.npmjs.org/@types/node/-/node-17.0.31.tgz",
       "integrity": "sha512-XImEz7XwTvDBtzlTnm8YvMqGW/ErMWBsKZ+hMTvnDIjGCKxwK5Xpc+c/oQjOauwq8M4OS11hEkpjX8rrI/eEgA=="
     },
     "node_modules/accepts": {
