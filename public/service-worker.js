@@ -1,53 +1,90 @@
-const files_to_cache=[
-  "../index.html"
-]
-const app_prefix= "budget-app"
-const version = "v1"
-const Cache_Name=app_prefix+version
+const CACHE_NAME = 'budget-cache-v1';
+const DATA_CACHE_NAME = 'data-cache-v1';
 
-self.addEventListener("install",(event)=>{
-  event.waitUntil(
-      caches.open(Cache_Name)
-      .then((cache)=>{
-          console.log("installing cache");
-          return cache.addAll(files_to_cache)//create cache when installed and save all files to cache
-      })
-  )
-})
+const FILES_TO_CACHE = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/css/styles.css',
+  '/icons/icon-72x72.png',
+  '/icons/icon-96x96.png',
+  '/icons/icon-128x128.png',
+  '/icons/icon-144x144.png',
+  '/icons/icon-152x152.png',
+  '/icons/icon-192x192.png',
+  '/icons/icon-384x384.png',
+  '/icons/icon-512x512.png',
+  '/js/idb.js',
+  '/js/index.js'
+];
 
-self.addEventListener('activate', function(e) {//delete old caches
-console.log("service worker activated");
-  e.waitUntil(
-    caches.keys().then(function(keyList) {
-      let cacheKeeplist = keyList.filter(function(key) {
-        return key.indexOf(app_prefix);
-      });
-      cacheKeeplist.push(Cache_Name);
+// Install the service worker
+self.addEventListener('install', function(evt) {
+  evt.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      console.log('Your files were pre-cached successfully!');
+      return cache.addAll(FILES_TO_CACHE);
+    })
+  );
+
+  self.skipWaiting();
+});
+
+// Activate the service worker and remove old data from the cache
+self.addEventListener('activate', function(evt) {
+  evt.waitUntil(
+    caches.keys().then(keyList => {
       return Promise.all(
-        keyList.map(function(key, i) {
-          if (cacheKeeplist.indexOf(key) === -1) {
-            console.log('deleting cache : ' + keyList[i]);
-            return caches.delete(keyList[i]);
+        keyList.map(key => {
+          if (key !== CACHE_NAME && key !== DATA_CACHE_NAME) {
+            console.log('Removing old cache data', key);
+            return caches.delete(key);
           }
         })
       );
     })
   );
+
+  self.clients.claim();
 });
 
-self.addEventListener("fetch",(event)=>{
-  console.log("fetch request: ",event.request.url);
-  console.log("caches: ",caches);
-  event.respondWith(
-      caches.match(event.request)
-      .then((request)=>{
-          if (request){
-              console.log("responding with cache: ",event.request.url);//respond with cache
-              return request
-          }else{
-              console.log("file is not cached, fetching : ",event.request.url);//respond with request 
-              return fetch(event.request)
-          }
-      })
-  )
-})
+// Intercept fetch requests
+self.addEventListener('fetch', function(evt) {
+  if (evt.request.url.includes('/api/')) {
+    evt.respondWith(
+      caches
+        .open(DATA_CACHE_NAME)
+        .then(cache => {
+          return fetch(evt.request)
+            .then(response => {
+              // If the response was good, clone it and store it in the cache.
+              if (response.status === 200) {
+                cache.put(evt.request.url, response.clone());
+              }
+
+              return response;
+            })
+            .catch(err => {
+              // Network request failed, try to get it from the cache.
+              return cache.match(evt.request);
+            });
+        })
+        .catch(err => console.log(err))
+    );
+
+    return;
+  }
+
+  evt.respondWith(
+    fetch(evt.request).catch(function() {
+      return caches.match(evt.request).then(function(response) {
+        if (response) {
+          return response;
+        } else if (evt.request.headers.get('accept').includes('text/html')) {
+          // return the cached home page for all requests for html pages
+          return caches.match('/');
+        }
+      });
+    })
+  );
+});
